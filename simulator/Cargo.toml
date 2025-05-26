@@ -1,0 +1,13 @@
+[package]
+name = "simulator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.19"
+embedded-graphics = "0.7.0"
+embedded-graphics-simulator = "0.3.0"
+embedded-text = "0.5.0"
+raylib-rs = "0.1.0"
+tinybmp = "0.3.1"
+tinytga = "0.4.1"
