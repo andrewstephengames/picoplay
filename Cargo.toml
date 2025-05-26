@@ -47,7 +47,8 @@ cortex-m-rt = "0.7.0"
 
 # Panic handler that exits `probe-run` with an error code
 panic-probe = { version = "0.3", features = ["print-defmt"] }
-ili9341 = "0.6.0"
+ili9341 = { version = "0.6.1", git = "https://github.com/andrewstephengames/ili9341-rs"}
 embedded-graphics = "0.8.1"
 display-interface-spi = "0.5.0"
 lcd-ili9341-spi = "0.1.3"
+static_cell = "2.1.0"
