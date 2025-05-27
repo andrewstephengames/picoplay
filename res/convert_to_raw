@@ -1,0 +1,3 @@
+#!/bin/sh
+out=$(echo $1 | cut -d '.' -f1)
+ffmpeg -vcodec png -i $1 -vcodec rawvideo -f rawvideo -pix_fmt rgb565 $out.raw
