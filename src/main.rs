@@ -2,9 +2,11 @@
 #![no_std]
 
 use display_interface_spi::SPIInterface;
+use embedded_graphics::{draw_target::DrawTarget, mono_font::{ascii::FONT_10X20, MonoTextStyle}, pixelcolor::BinaryColor, prelude::{Point, Size, WebColors}, primitives::{PrimitiveStyle, Rectangle}, text::Text};
 use embassy_executor::Spawner;
+use embedded_graphics::prelude::Primitive;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
-use embassy_rp::{gpio::{Input, Level, Output, Pull}, peripherals::{self, SPI0}, pwm::{Pwm, SetDutyCycle}, rom_data::set_ns_api_permission, spi};
+use embassy_rp::{gpio::{Input, Level, Output, Pull}, peripherals::{self, SPI0}, pwm::{Pwm, SetDutyCycle}, rom_data::set_ns_api_permission, spi, Peripherals};
 use embassy_sync::blocking_mutex::NoopMutex;
 use embassy_time::{Delay, Timer};
 use embedded_graphics::{pixelcolor::Rgb565, prelude::RgbColor};
@@ -17,29 +19,100 @@ use defmt::{info, error};
 use crate::peripherals::SPI1;
 // use embassy_rp::peripherals::SPI1;
 use core::panic::PanicInfo;
+use embedded_graphics::Drawable;
 use defmt_rtt as _;
 
 mod irqs;
 
 static SPI_BUS: StaticCell<NoopMutex<RefCell<Spi<'static, SPI1, Blocking>>>> = StaticCell::new();
+
+const WINDOW_X: i32 = 320;
+const WINDOW_Y: i32 = 240;
+const CONSOLE_NAME: &str = "PicoPlay";
+
+struct Menu {
+    retro_heroes_active: bool,
+    other_games_active: bool,
+}
+
 #[embassy_executor::task]
 async fn display_task(
     spi_bus: &'static NoopMutex<RefCell<Spi<'static, SPI1, Blocking>>>,
     mut cs: Output<'static>,
     mut dc: Output<'static>,
     mut reset: Output<'static>,
+    mut left: Input<'static>,
+    mut ok: Input<'static>,
+    mut right: Input<'static>
 ) {
     let spi_dev = SpiDevice::new(&spi_bus, cs);
     let iface = SPIInterface::new(spi_dev, dc);
 
     let mut delay = Delay;
+    
+    let mut menu= Menu {retro_heroes_active: true, other_games_active: false};
 
-    let mut display = Ili9341::new(iface, reset, &mut delay, Orientation::Landscape, DisplaySize240x320).unwrap();
+    let mut display = Ili9341::new(
+        iface,
+        reset,
+        &mut delay,
+        Orientation::Landscape,
+        DisplaySize240x320
+    ).unwrap();
 
-    display.idle_mode(ModeState::Off).unwrap();
-    display.invert_mode(ModeState::On).unwrap();
-    let _ = display.normal_mode_frame_rate(ili9341::FrameRateClockDivision::Fosc, ili9341::FrameRate::FrameRate100);
-    // display.clear(Rgb565::BLACK).unwrap();
+	    display.idle_mode(ModeState::Off).unwrap();
+	    // display.invert_mode(ModeState::On).unwrap();
+	    let _ = display.normal_mode_frame_rate(ili9341::FrameRateClockDivision::Fosc, ili9341::FrameRate::FrameRate100);
+	    display.clear(Rgb565::CSS_LIGHT_BLUE).unwrap();
+	    let mut rect_style = PrimitiveStyle::with_stroke(Rgb565::BLACK, 1);
+	    let text_style = MonoTextStyle::new(&FONT_10X20, Rgb565::BLACK);
+    loop {
+	
+	    Text::new(CONSOLE_NAME, Point::new(WINDOW_X/2-2*8, 20), text_style).draw(&mut display);
+	    Text::new("What would you like to play?", Point::new(20, 80), text_style).draw(&mut display);
+	
+	    let retroheroes_label = "Retro Heroes";
+	    let other_games_label = "Other Games";
+        let scale = 5;
+        let button_scale = 12;
+        let stroke_width = 2;
+
+        if left.is_low() || right.is_low() {
+            menu.retro_heroes_active = !menu.retro_heroes_active;
+            menu.other_games_active = !menu.other_games_active;
+        }
+        
+        if ok.is_low() {
+            if menu.retro_heroes_active == true {
+                info!("Retro Heroes launching");
+            }
+            if menu.other_games_active == true {
+                info!("Other games launching")
+            }
+        }
+        
+        
+        if menu.retro_heroes_active == true {
+            rect_style = PrimitiveStyle::with_stroke(Rgb565::CSS_LIME, stroke_width);
+        } else {
+            rect_style = PrimitiveStyle::with_stroke(Rgb565::BLACK, stroke_width);
+        }
+	    Rectangle::new(Point::new(WINDOW_X/2-retroheroes_label.len() as i32 * scale, 100), Size::new(retroheroes_label.len() as u32 * button_scale, 30))
+	        .into_styled(rect_style)
+	        .draw(&mut display);
+	    Text::new(retroheroes_label, Point::new(WINDOW_X/2i32-retroheroes_label.len() as i32 * scale, 120), text_style).draw(&mut display);
+
+        if menu.other_games_active == true {
+            rect_style = PrimitiveStyle::with_stroke(Rgb565::GREEN, stroke_width);
+        } else {
+            rect_style = PrimitiveStyle::with_stroke(Rgb565::BLACK, stroke_width);
+        }
+	
+	    Rectangle::new(Point::new(WINDOW_X/2-other_games_label.len() as i32 * scale, 130), Size::new(other_games_label.len() as u32 *button_scale, 30))
+	        .into_styled(rect_style)
+	        .draw(&mut display);
+	    Text::new(other_games_label, Point::new(WINDOW_X/2i32-other_games_label.len() as i32 * scale, 150), text_style).draw(&mut display);
+    }
 }
 
 
@@ -118,7 +191,8 @@ async fn main(spawner: Spawner) {
     // 
     let mut delay2 = 50;
 
-    spawner.spawn(display_task(spi_bus, cs, dc, reset)).unwrap();
+    spawner.spawn(display_task(spi_bus, cs, dc, reset, left_button, ok_button, right_button)).unwrap();
+
     
     // loop {
     //     Timer::after_millis(delay2).await;
