@@ -68,6 +68,21 @@ async fn main(spawner: Spawner) {
     let mut spi_config = SpiConfig::default();
     spi_config.frequency = 40_000_000;
 
+    let mut buzzer_config: PwmConfig = Default::default();
+    buzzer_config.top = 0x9088;
+
+    let mut volume: u16 = 1;
+    buzzer_config.compare_b = buzzer_config.top / volume;
+
+    let mut buzzer = Pwm::new_output_b(
+        peripherals.PWM_SLICE2,
+        peripherals.PIN_21,
+        buzzer_config.clone()
+    );
+    
+    let mut volume2 = 0;
+    buzzer.set_duty_cycle(volume2);
+
     let mut spi = Spi::new_blocking(
         peripherals.SPI1,
         peripherals.PIN_14, // SCK
