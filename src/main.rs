@@ -2,7 +2,9 @@
 #![no_std]
 
 use biski64::Biski64Rng;
+use cyw43::JoinOptions;
 use display_interface_spi::SPIInterface;
+use embassy_net::StackResources;
 use embedded_graphics::{draw_target::DrawTarget, image::{Image, ImageRawLE}, mono_font::{ascii::FONT_10X20, MonoTextStyle}, pixelcolor::BinaryColor, prelude::{Point, Size, WebColors}, primitives::{Line, PrimitiveStyle, Rectangle}, text::Text};
 use embassy_executor::Spawner;
 use embedded_graphics::prelude::Primitive;
@@ -27,12 +29,17 @@ use embedded_graphics::Drawable;
 use defmt_rtt as _;
 
 mod irqs;
+mod secrets;
 
 static SPI_BUS: StaticCell<NoopMutex<RefCell<Spi<'static, SPI1, Blocking>>>> = StaticCell::new();
 
 const WINDOW_X: i32 = 320;
 const WINDOW_Y: i32 = 240;
 const CONSOLE_NAME: &str = "PicoPlay";
+const WIFI_NETWORK: &str = secrets::ssid;
+const WIFI_PASSWORD: &str = secrets::password;
+const SOCK: usize = 4;
+static RESOURCES: StaticCell<StackResources<SOCK>> = StaticCell::<StackResources<SOCK>>::new();
 
 struct Menu {
     retro_heroes_active: bool,
@@ -109,6 +116,7 @@ async fn display_task(
 	                //     .into_styled(rect_style)
 	                //     .draw(&mut display);
                     if left.is_low() && right.is_high() && ok.is_high() {
+                        info!("Player 1 used attack!");
                         line_style = PrimitiveStyle::with_fill(Rgb565::RED);
                         Line::new(
                             Point::new(140, rng.next_u64() as i32 %140),
@@ -121,6 +129,7 @@ async fn display_task(
 	                        .draw(&mut display);
                     }
                     if ok.is_low() && left.is_high() && right.is_high() {
+                        info!("Player 1 used heal!");
                         line_style = PrimitiveStyle::with_fill(Rgb565::YELLOW);
                         Line::new(
                             Point::new(140, rng.next_u64() as i32 %140),
@@ -133,9 +142,10 @@ async fn display_task(
 	                        .draw(&mut display);
                     }
                     if right.is_low() && ok.is_high() && left.is_high() {
+                        info!("Player 1 used special attack");
                         line_style = PrimitiveStyle::with_fill(Rgb565::CSS_PURPLE);
                         Line::new(
-                            Point::new(140, rng.next_u64() as i32 %140),
+                            Point::new(140, rng.next_u64() as i32 % 140),
                             Point::new(200, rng.next_u64() as i32 % 140))
                             .into_styled(line_style)
                             .draw(&mut display);
@@ -147,9 +157,9 @@ async fn display_task(
                     if player1_hp < 0 {
                         player1_hp = 0;
                     }
-                    // if player1_hp > 100 {
-                    //     player1_hp = 100;
-                    // }
+                    if player1_hp > 100 {
+                        player1_hp = 100;
+                    }
                     if player2_hp < 0 {
                         player2_hp = 0;
                     }
@@ -215,17 +225,7 @@ async fn main(spawner: Spawner) {
     let mut ok_button = Input::new (peripherals.PIN_19, Pull::Up);
     let mut right_button = Input::new (peripherals.PIN_20, Pull::Up);
     
-    config.top = 0x9088;
-    
-    let brightness = 1;
-
-    config.compare_a = config.top / brightness;
-    
-    let mut on_light = Pwm::new_output_a(
-        peripherals.PWM_SLICE0,
-        peripherals.PIN_16,
-        config.clone()
-    );
+    let mut connect_light = Output::new(peripherals.PIN_16, Level::Low);
     
     let mut spi_config = SpiConfig::default();
     spi_config.frequency = 40_000_000;
@@ -279,7 +279,24 @@ async fn main(spawner: Spawner) {
     // display.clear(Rgb565::RED).unwrap();
     // 
     let mut delay2 = 50;
-
+    
+    let (net_device, mut control) = embassy_lab_utils::init_wifi!(&spawner, peripherals).await;
+    let config = embassy_net::Config::dhcpv4(Default::default());
+    let stack = embassy_lab_utils::init_network_stack(&spawner, net_device, &RESOURCES, config);
+        loop {
+        match control.join(WIFI_NETWORK, JoinOptions::new(WIFI_PASSWORD.as_bytes())).await {
+            Ok(_) => break,
+            Err(err) => {
+                info!("join failed with status={}", err.status);
+            }
+        }
+    }
+    info!("waiting for DHCP...");
+    while !stack.is_config_up() {
+        Timer::after_millis(100).await;
+    }
+    info!("DHCP is now up!");
+    connect_light.set_high();
     spawner.spawn(display_task(spi_bus, cs, dc, reset, left_button, ok_button, right_button)).unwrap();
 
 }

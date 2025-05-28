@@ -10,6 +10,8 @@ embassy-rp = { version = "0.3.0", git = "https://github.com/embassy-rs/embassy",
 # Embedded HAL utilities
 embassy-embedded-hal = { version = "0.3.0", git = "https://github.com/embassy-rs/embassy", rev = "2e7a2b6", features = ["defmt"] }
 
+embassy_lab_utils = { path = "/home/andrew/git/picoplay/embassy_lab_utils" }
+
 # Synchronization primitives and data structures with async support
 embassy-sync = { version = "0.6.2", git = "https://github.com/embassy-rs/embassy", rev = "2e7a2b6", features = ["defmt"] }
 
@@ -48,7 +50,25 @@ cortex-m-rt = "0.7.0"
 # Panic handler that exits `probe-run` with an error code
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 ili9341 = { version = "0.6.1", git = "https://github.com/andrewstephengames/ili9341-rs"}
-embedded-graphics = "0.8.1"
 display-interface-spi = "0.5.0"
-lcd-ili9341-spi = "0.1.3"
 static_cell = "2.1.0"
+embedded-sprites = "0.2.0"
+heapless = "0.8.0"
+rand_core = "0.9.3"
+biski64 = "0.2.4"
+
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies.embedded-graphics]
+version = "0.7"
+optional = true
+
+[features]
+default = ["graphics"]
+graphics = ["embedded-graphics"]
