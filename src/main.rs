@@ -103,6 +103,8 @@ async fn display_task(
                 info!("Retro Heroes launching");
                 let mut player1_hp = 100;
                 let mut player2_hp = 100;
+                let mut player1_won = false;
+                let mut player2_won = false;
                 let mut line_style: PrimitiveStyle<Rgb565>;
                 loop {
                     let player1 = ImageRawLE::new(include_bytes!("../res/player1.raw"), 128);
@@ -115,44 +117,67 @@ async fn display_task(
 	                // Rectangle::new(Point::new(10, 10), Size::new(200, 200))
 	                //     .into_styled(rect_style)
 	                //     .draw(&mut display);
-                    if left.is_low() && right.is_high() && ok.is_high() {
-                        info!("Player 1 used attack!");
-                        line_style = PrimitiveStyle::with_fill(Rgb565::RED);
-                        Line::new(
-                            Point::new(140, rng.next_u64() as i32 %140),
-                            Point::new(200, rng.next_u64() as i32 % 140))
-                            .into_styled(line_style)
-                            .draw(&mut display);
-                        player2_hp -= 10;
-	                    Rectangle::new(Point::new(30, 140), Size::new(280, 250))
-	                        .into_styled(rect_style)
-	                        .draw(&mut display);
-                    }
-                    if ok.is_low() && left.is_high() && right.is_high() {
-                        info!("Player 1 used heal!");
-                        line_style = PrimitiveStyle::with_fill(Rgb565::YELLOW);
-                        Line::new(
-                            Point::new(140, rng.next_u64() as i32 %140),
-                            Point::new(200, rng.next_u64() as i32 % 140))
-                            .into_styled(line_style)
-                            .draw(&mut display);
-                        player1_hp += 10;
-	                    Rectangle::new(Point::new(30, 140), Size::new(280, 250))
-	                        .into_styled(rect_style)
-	                        .draw(&mut display);
-                    }
-                    if right.is_low() && ok.is_high() && left.is_high() {
-                        info!("Player 1 used special attack");
-                        line_style = PrimitiveStyle::with_fill(Rgb565::CSS_PURPLE);
-                        Line::new(
-                            Point::new(140, rng.next_u64() as i32 % 140),
-                            Point::new(200, rng.next_u64() as i32 % 140))
-                            .into_styled(line_style)
-                            .draw(&mut display);
-                        player2_hp -= 20;
-	                    Rectangle::new(Point::new(30, 140), Size::new(280, 250))
-	                        .into_styled(rect_style)
-	                        .draw(&mut display);
+                    if !player1_won && !player2_won {
+	                    if left.is_low() && right.is_high() && ok.is_high() {
+	                        info!("Player 1 used attack!");
+		                    Rectangle::new(Point::new(138, 0), Size::new(62, 138))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                        line_style = PrimitiveStyle::with_stroke(Rgb565::RED, stroke_width);
+	                        let y = rng.next_u64() as i32 % 140;
+	                        Line::new(
+	                            Point::new(140, rng.next_u64() as i32 %140),
+	                            Point::new(200, y))
+	                            .into_styled(line_style)
+	                            .draw(&mut display);
+		                    Rectangle::new(Point::new(200, y), Size::new(10, 10))
+		                        .into_styled(line_style)
+		                        .draw(&mut display);
+	                        player2_hp -= 10;
+		                    Rectangle::new(Point::new(200, 138), Size::new(100, 250))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                    }
+	                    if ok.is_low() && left.is_high() && right.is_high() {
+	                        info!("Player 1 used heal!");
+		                    Rectangle::new(Point::new(138, 0), Size::new(62, 138))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                        line_style = PrimitiveStyle::with_stroke(Rgb565::YELLOW, stroke_width);
+                            let y = rng.next_u64() as i32 % 140;
+	                        Line::new(
+	                            Point::new(140, rng.next_u64() as i32 %140),
+	                            Point::new(200, y as i32 % 140))
+	                            .into_styled(line_style)
+	                            .draw(&mut display);
+	                        Rectangle::new(Point::new(200, y), Size::new(10, 10))
+	                            .into_styled(line_style)
+	                            .draw(&mut display);
+	                        player1_hp += 10;
+		                    Rectangle::new(Point::new(30, 140), Size::new(140, 250))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                    }
+	                    if right.is_low() && ok.is_high() && left.is_high() {
+	                        info!("Player 1 used special attack");
+		                    Rectangle::new(Point::new(138, 0), Size::new(62, 138))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                        line_style = PrimitiveStyle::with_stroke(Rgb565::CSS_PURPLE, stroke_width);
+                            let y = rng.next_u64() as i32 % 140;
+	                        Line::new(
+	                            Point::new(140, rng.next_u64() as i32 % 140),
+	                            Point::new(200, y))
+	                            .into_styled(line_style)
+	                            .draw(&mut display);
+	                        Rectangle::new(Point::new(200, y), Size::new(10, 10))
+	                            .into_styled(line_style)
+	                            .draw(&mut display);
+	                        player2_hp -= 20;
+		                    Rectangle::new(Point::new(200, 138), Size::new(100, 250))
+		                        .into_styled(rect_style)
+		                        .draw(&mut display);
+	                    }
                     }
                     if player1_hp < 0 {
                         player1_hp = 0;
@@ -165,6 +190,14 @@ async fn display_task(
                     }
                     if player2_hp > 100 {
                         player2_hp = 100;
+                    }
+                    if player1_hp == 0 {
+                        player1_won = true;
+	                    Text::new("Player 2 won the game!", Point::new(20, 80), text_style).draw(&mut display);
+                    }
+                    if player2_hp == 0 {
+                        player1_won = true;
+	                    Text::new("Player 1 won the game!", Point::new(20, 80), text_style).draw(&mut display);
                     }
                     let mut hp_buf1: String<32> = String::new();
                     write!(&mut hp_buf1, "HP: {}", player1_hp).unwrap();
