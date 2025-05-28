@@ -16,8 +16,11 @@
 ## Steps
 
 ```git clone https://github.com/andrewstephengames/picoplay```
+
 ```cd picoplay```
+
 ```cargo build```
+
 ```cargo run```
 
 # Project architecture
